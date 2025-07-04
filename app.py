@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from io import StringIO
 from utils import resumen_kpis, tabla_cumplimiento_unidades, grafico_vulnerabilidad_por_unidad
 
 # Configuración general del dashboard
@@ -47,10 +48,14 @@ grafico_vulnerabilidad_por_unidad(df_filtrado)
 # Sección de insights automáticos
 st.subheader("📢 Alertas e Insights Automáticos")
 
+alertas = []
+
 # Insight: cantidad de activos con algoritmos de alta vulnerabilidad sin cumplimiento NIST
 alto_riesgo = df_filtrado[(df_filtrado['Vulnerabilidad Cuántica'] == 'Alta') & (df_filtrado['Cumple NIST PQC'] != 'Sí')]
 if len(alto_riesgo) > 0:
-    st.warning(f"⚠️ {len(alto_riesgo)} activos utilizan algoritmos con alta vulnerabilidad cuántica y no cumplen con NIST PQC.")
+    mensaje = f"⚠️ {len(alto_riesgo)} activos utilizan algoritmos con alta vulnerabilidad cuántica y no cumplen con NIST PQC."
+    st.warning(mensaje)
+    alertas.append(mensaje)
 
 # Insight: unidades sin ningún cumplimiento completo
 unidades_sin_cumplimiento = df_filtrado.groupby('Unidad de Negocio').apply(
@@ -58,14 +63,23 @@ unidades_sin_cumplimiento = df_filtrado.groupby('Unidad de Negocio').apply(
 )
 unidades_en_riesgo = unidades_sin_cumplimiento[unidades_sin_cumplimiento].index.tolist()
 if unidades_en_riesgo:
-    st.error(f"❌ Las siguientes unidades no tienen ningún activo que cumpla completamente con los 3 estándares: {', '.join(unidades_en_riesgo)}")
+    mensaje = f"❌ Las siguientes unidades no tienen ningún activo que cumpla completamente con los 3 estándares: {', '.join(unidades_en_riesgo)}"
+    st.error(mensaje)
+    alertas.append(mensaje)
 
 # Insight positivo
 cumplen_todo = df_filtrado[(df_filtrado['Cumple NIST PQC'] == 'Sí') & 
                            (df_filtrado['Cumple ETSI'] == 'Sí') & 
                            (df_filtrado['Cumple ISO'] == 'Sí')]
 if len(cumplen_todo) > 0:
-    st.success(f"✅ {len(cumplen_todo)} activos cumplen completamente con los 3 estándares de seguridad post-cuántica.")
+    mensaje = f"✅ {len(cumplen_todo)} activos cumplen completamente con los 3 estándares de seguridad post-cuántica."
+    st.success(mensaje)
+    alertas.append(mensaje)
+
+# Botón para descargar alertas como TXT
+if alertas:
+    alert_text = "\n".join(alertas)
+    st.download_button("📤 Descargar alertas como TXT", data=alert_text, file_name="alertas_quantum.txt")
 
 # Índice de madurez cuántica (simulado)
 st.subheader("📈 Índice de preparación organizacional")
@@ -165,5 +179,5 @@ fig_heatmap = px.imshow(heatmap_counts, text_auto=True, aspect='auto',
                         title="Mapa de Calor: Cumplimiento NIST PQC por Unidad")
 st.plotly_chart(fig_heatmap, use_container_width=True)
 
-# Espacio para descargar reporte
+# Espacio para descargar reporte completo
 st.download_button("📥 Descargar reporte ejecutivo (CSV)", data=df_filtrado.to_csv(index=False), file_name="reporte_quantum.csv")

@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from utils import resumen_kpis, tabla_cumplimiento_unidades, grafico_vulnerabilidad_por_unidad
 
 # Configuración general del dashboard
 st.set_page_config(page_title="Quantum Readiness Dashboard", layout="wide")
@@ -23,18 +24,24 @@ unidad_seleccionada = st.sidebar.selectbox("Selecciona unidad de negocio", ["Tod
 criticidad_seleccionada = st.sidebar.selectbox("Nivel de criticidad", ["Todos"] + sorted(df['Criticidad'].unique()))
 
 # Aplicar filtros
-filtro_df = df.copy()
+df_filtrado = df.copy()
 if unidad_seleccionada != "Todas":
-    filtro_df = filtro_df[filtro_df['Unidad de Negocio'] == unidad_seleccionada]
+    df_filtrado = df_filtrado[df_filtrado['Unidad de Negocio'] == unidad_seleccionada]
 if criticidad_seleccionada != "Todos":
-    filtro_df = filtro_df[filtro_df['Criticidad'] == criticidad_seleccionada]
+    df_filtrado = df_filtrado[df_filtrado['Criticidad'] == criticidad_seleccionada]
+
+# Sección de KPIs principales
+resumen_kpis(df_filtrado)
 
 # Visualización: uso de algoritmos
 st.subheader("🔍 Algoritmos criptográficos en uso")
-data_crypto = filtro_df.groupby(['Algoritmo', 'Vulnerabilidad Cuántica'])['Uso (%)'].mean().reset_index()
+data_crypto = df_filtrado.groupby(['Algoritmo', 'Vulnerabilidad Cuántica'])['Uso (%)'].mean().reset_index()
 fig_crypto = px.bar(data_crypto, x='Algoritmo', y='Uso (%)', color='Vulnerabilidad Cuántica',
                     color_discrete_map={'Alta': 'red', 'Media': 'orange', 'Baja': 'green'})
 st.plotly_chart(fig_crypto, use_container_width=True)
+
+# Visualización: exposición por unidad de negocio
+grafico_vulnerabilidad_por_unidad(df_filtrado)
 
 # Índice de madurez cuántica (simulado)
 st.subheader("📈 Índice de preparación organizacional")
@@ -46,13 +53,16 @@ st.subheader("📋 Cumplimiento frente a estándares")
 data_compliance = pd.DataFrame({
     'Estándar': ['NIST PQC', 'ETSI GR ELLF', 'ISO/IEC 23837'],
     'Cumplimiento (%)': [
-        100 * (filtro_df['Cumple NIST PQC'] == 'Sí').mean(),
-        100 * (filtro_df['Cumple ETSI'] == 'Sí').mean(),
-        100 * (filtro_df['Cumple ISO'] == 'Sí').mean()
+        100 * (df_filtrado['Cumple NIST PQC'] == 'Sí').mean(),
+        100 * (df_filtrado['Cumple ETSI'] == 'Sí').mean(),
+        100 * (df_filtrado['Cumple ISO'] == 'Sí').mean()
     ]
 })
 fig_compliance = px.bar(data_compliance, x='Estándar', y='Cumplimiento (%)', color='Estándar')
 st.plotly_chart(fig_compliance, use_container_width=True)
+
+# Tabla de cumplimiento por unidad
+tabla_cumplimiento_unidades(df_filtrado)
 
 # Roadmap visual (timeline simplificada)
 st.subheader("🗺️ Timeline de acciones estratégicas")
@@ -65,4 +75,4 @@ st.markdown("""
 """)
 
 # Espacio para descargar reporte
-st.download_button("📥 Descargar reporte ejecutivo (CSV)", data=filtro_df.to_csv(index=False), file_name="reporte_quantum.csv")
+st.download_button("📥 Descargar reporte ejecutivo (CSV)", data=df_filtrado.to_csv(index=False), file_name="reporte_quantum.csv")

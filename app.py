@@ -98,6 +98,36 @@ st.markdown("""
 - 🚀 2026: Despliegue inicial en sistemas críticos.
 """)
 
+# Timeline de regulaciones relevantes
+st.subheader("📅 Timeline de Regulaciones Relevantes")
+timeline_df = pd.DataFrame({
+    'Fecha': ["2016-05-25", "2019-10-01", "2022-07-05", "2023-11-01", "2025-04-01", "2026-06-01", "2027-01-01"],
+    'Evento': [
+        "GDPR entra en vigor",
+        "ENISA publica directrices PQC",
+        "NIST selecciona finalistas PQC",
+        "Borradores Kyber y Dilithium",
+        "Revisión de GDPR con enfoque IA",
+        "Adopción recomendada de PQC en infraestructura crítica",
+        "Adopción global esperada de PQC"
+    ],
+    'Organismo': ["UE", "ENISA", "NIST", "NIST", "UE", "ETSI/ENISA", "Global"]
+})
+timeline_df['Fecha'] = pd.to_datetime(timeline_df['Fecha'])
+timeline_df['Fin'] = timeline_df['Fecha'] + pd.Timedelta(days=10)
+
+fig_timeline = px.timeline(
+    timeline_df,
+    x_start="Fecha",
+    x_end="Fin",
+    y="Evento",
+    color="Organismo",
+    title="Hitos de Regulaciones Clave"
+)
+fig_timeline.update_yaxes(autorange="reversed")
+fig_timeline.update_layout(showlegend=True)
+st.plotly_chart(fig_timeline, use_container_width=True)
+
 # Perspectivas Avanzadas
 st.subheader("🔍 Perspectivas Avanzadas")
 
@@ -129,8 +159,11 @@ st.plotly_chart(fig_radar, use_container_width=True)
 
 # Heatmap
 st.markdown("**🔥 Mapa de calor de cumplimiento por unidad**")
-heatmap_data = pd.crosstab(df_filtrado['Unidad de Negocio'], df_filtrado['Cumple NIST PQC'])
-st.dataframe(heatmap_data.style.background_gradient(cmap='RdYlGn'))
+heatmap_counts = pd.crosstab(df_filtrado['Unidad de Negocio'], df_filtrado['Cumple NIST PQC'])
+fig_heatmap = px.imshow(heatmap_counts, text_auto=True, aspect='auto',
+                        labels=dict(x="Cumple NIST PQC", y="Unidad de Negocio", color="Cantidad"),
+                        title="Mapa de Calor: Cumplimiento NIST PQC por Unidad")
+st.plotly_chart(fig_heatmap, use_container_width=True)
 
 # Espacio para descargar reporte
 st.download_button("📥 Descargar reporte ejecutivo (CSV)", data=df_filtrado.to_csv(index=False), file_name="reporte_quantum.csv")

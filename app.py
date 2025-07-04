@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from utils import resumen_kpis, tabla_cumplimiento_unidades, grafico_vulnerabilidad_por_unidad
 
 # Configuración general del dashboard
@@ -43,6 +44,29 @@ st.plotly_chart(fig_crypto, use_container_width=True)
 # Visualización: exposición por unidad de negocio
 grafico_vulnerabilidad_por_unidad(df_filtrado)
 
+# Sección de insights automáticos
+st.subheader("📢 Alertas e Insights Automáticos")
+
+# Insight: cantidad de activos con algoritmos de alta vulnerabilidad sin cumplimiento NIST
+alto_riesgo = df_filtrado[(df_filtrado['Vulnerabilidad Cuántica'] == 'Alta') & (df_filtrado['Cumple NIST PQC'] != 'Sí')]
+if len(alto_riesgo) > 0:
+    st.warning(f"⚠️ {len(alto_riesgo)} activos utilizan algoritmos con alta vulnerabilidad cuántica y no cumplen con NIST PQC.")
+
+# Insight: unidades sin ningún cumplimiento completo
+unidades_sin_cumplimiento = df_filtrado.groupby('Unidad de Negocio').apply(
+    lambda x: ((x['Cumple NIST PQC'] != 'Sí') & (x['Cumple ETSI'] != 'Sí') & (x['Cumple ISO'] != 'Sí')).all()
+)
+unidades_en_riesgo = unidades_sin_cumplimiento[unidades_sin_cumplimiento].index.tolist()
+if unidades_en_riesgo:
+    st.error(f"❌ Las siguientes unidades no tienen ningún activo que cumpla completamente con los 3 estándares: {', '.join(unidades_en_riesgo)}")
+
+# Insight positivo
+cumplen_todo = df_filtrado[(df_filtrado['Cumple NIST PQC'] == 'Sí') & 
+                           (df_filtrado['Cumple ETSI'] == 'Sí') & 
+                           (df_filtrado['Cumple ISO'] == 'Sí')]
+if len(cumplen_todo) > 0:
+    st.success(f"✅ {len(cumplen_todo)} activos cumplen completamente con los 3 estándares de seguridad post-cuántica.")
+
 # Índice de madurez cuántica (simulado)
 st.subheader("📈 Índice de preparación organizacional")
 st.metric(label="Nivel de madurez (escala 0-5)", value="2.5", delta="+0.5 desde Q1")
@@ -73,6 +97,40 @@ st.markdown("""
 - 🧪 Q4 2025: Pruebas con algoritmos lattice-based.
 - 🚀 2026: Despliegue inicial en sistemas críticos.
 """)
+
+# Perspectivas Avanzadas
+st.subheader("🔍 Perspectivas Avanzadas")
+
+# Sunburst Chart
+st.markdown("**🌞 Distribución jerárquica de exposición**")
+sunburst_data = df_filtrado.copy()
+sunburst_data['count'] = 1
+fig_sunburst = px.sunburst(sunburst_data, path=['Algoritmo', 'Unidad de Negocio', 'Vulnerabilidad Cuántica'], values='count')
+st.plotly_chart(fig_sunburst, use_container_width=True)
+
+# Radar Chart
+st.markdown("**🕸️ Comparativo de cumplimiento por unidad**")
+radar_data = df_filtrado.copy()
+radar_data['cumple_nist'] = (radar_data['Cumple NIST PQC'] == 'Sí').astype(int) * 100
+radar_data['cumple_etsi'] = (radar_data['Cumple ETSI'] == 'Sí').astype(int) * 100
+radar_data['cumple_iso'] = (radar_data['Cumple ISO'] == 'Sí').astype(int) * 100
+radar_grouped = radar_data.groupby('Unidad de Negocio')[['cumple_nist', 'cumple_etsi', 'cumple_iso']].mean().reset_index()
+
+fig_radar = go.Figure()
+for _, row in radar_grouped.iterrows():
+    fig_radar.add_trace(go.Scatterpolar(
+        r=row[['cumple_nist', 'cumple_etsi', 'cumple_iso']].values,
+        theta=['NIST PQC', 'ETSI', 'ISO/IEC'],
+        fill='toself',
+        name=row['Unidad de Negocio']
+    ))
+fig_radar.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), showlegend=True)
+st.plotly_chart(fig_radar, use_container_width=True)
+
+# Heatmap
+st.markdown("**🔥 Mapa de calor de cumplimiento por unidad**")
+heatmap_data = pd.crosstab(df_filtrado['Unidad de Negocio'], df_filtrado['Cumple NIST PQC'])
+st.dataframe(heatmap_data.style.background_gradient(cmap='RdYlGn'))
 
 # Espacio para descargar reporte
 st.download_button("📥 Descargar reporte ejecutivo (CSV)", data=df_filtrado.to_csv(index=False), file_name="reporte_quantum.csv")
